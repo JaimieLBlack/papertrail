@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Admin — PaperTrail{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4"><i class="bi bi-shield-lock"></i> Admin Panel</h1>
+
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#users-tab">Users ({{ users|length }})</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#docs-tab">All Documents ({{ docs|length }})</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="users-tab">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Joined</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td class="text-muted small">{{ u.id }}</td>
+            <td class="fw-medium">{{ u.name }}</td>
+            <td class="text-muted small">{{ u.email }}</td>
+            <td class="text-muted small">{{ u.department or '—' }}</td>
+            <td>
+              <span class="badge bg-{{ 'danger' if u.role == 'admin' else 'secondary' }}">{{ u.role }}</span>
+            </td>
+            <td class="text-muted small">{{ u.created_at[:10] }}</td>
+            <td>
+              <form method="post" action="{{ url_for('update_user_role', user_id=u.id) }}" class="d-flex gap-1">
+                <select name="role" class="form-select form-select-sm" style="width:auto">
+                  <option value="member" {{ 'selected' if u.role == 'member' else '' }}>member</option>
+                  <option value="admin" {{ 'selected' if u.role == 'admin' else '' }}>admin</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Set</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="docs-tab">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th><th>Title</th><th>Owner</th><th>Status</th><th>Visibility</th><th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in docs %}
+          <tr>
+            <td class="text-muted small">{{ doc.id }}</td>
+            <td><a href="{{ url_for('view_document', doc_id=doc.id) }}" class="text-decoration-none">{{ doc.title }}</a></td>
+            <td class="text-muted small">{{ doc.owner_name }}</td>
+            <td>
+              <span class="badge bg-{{ 'success' if doc.status == 'approved' else 'danger' if doc.status == 'rejected' else 'warning text-dark' if doc.status == 'in_review' else 'secondary' }}">
+                {{ doc.status.replace('_', ' ') }}
+              </span>
+            </td>
+            <td><i class="bi bi-{{ 'globe' if doc.visibility == 'public' else 'lock' }}"></i> {{ doc.visibility }}</td>
+            <td class="text-muted small">{{ doc.updated_at[:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

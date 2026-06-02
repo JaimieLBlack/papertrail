@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} — PaperTrail{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+    <li class="breadcrumb-item active">{{ doc.title }}</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h1 class="h3 mb-1">{{ doc.title }}</h1>
+            <small class="text-muted">
+              By <strong>{{ doc.owner_name }}</strong> &middot;
+              Updated {{ doc.updated_at[:10] }}
+            </small>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <span class="badge bg-{{ 'success' if doc.status == 'approved' else 'danger' if doc.status == 'rejected' else 'warning text-dark' if doc.status == 'in_review' else 'secondary' }} fs-6">
+              {{ doc.status.replace('_', ' ') }}
+            </span>
+            {% if session.user_id == doc.owner_id %}
+            <a href="{{ url_for('edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-pencil"></i> Edit
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        <hr>
+        <div class="document-content">
+          {{ doc.content | safe }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white fw-medium">
+        <i class="bi bi-chat-left-text"></i> Comments ({{ comments|length }})
+      </div>
+      <div class="card-body p-3">
+        {% if comments %}
+        {% for comment in comments %}
+        <div class="d-flex gap-3 mb-3">
+          <div class="flex-shrink-0">
+            <div class="avatar-circle bg-primary text-white">{{ comment.author_name[0].upper() }}</div>
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-medium small">{{ comment.author_name }}
+              <span class="text-muted fw-normal">{{ comment.created_at[:16].replace('T', ' ') }}</span>
+            </div>
+            <div class="mt-1">{{ comment.body | safe }}</div>
+          </div>
+        </div>
+        {% endfor %}
+        <hr>
+        {% endif %}
+
+        {% if session.user_id %}
+        <form method="post" action="{{ url_for('add_comment', doc_id=doc.id) }}">
+          <div class="mb-2">
+            <textarea name="body" class="form-control" rows="3" placeholder="Add a comment…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary">Post comment</button>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-0"><a href="{{ url_for('login') }}">Log in</a> to leave a comment.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white fw-medium">
+        <i class="bi bi-paperclip"></i> Attachments
+      </div>
+      <div class="card-body p-3">
+        {% if attachments %}
+        <ul class="list-unstyled mb-3">
+          {% for att in attachments %}
+          <li class="mb-2">
+            <a href="{{ url_for('download_file', doc_id=doc.id, file=att.filename) }}" class="text-decoration-none">
+              <i class="bi bi-file-earmark"></i> {{ att.filename }}
+            </a>
+            <small class="text-muted d-block">{{ att.uploaded_at[:10] }}</small>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted small">No attachments.</p>
+        {% endif %}
+
+        {% if session.user_id %}
+        <form method="post" action="{{ url_for('upload_attachment', doc_id=doc.id) }}" enctype="multipart/form-data">
+          <div class="input-group input-group-sm">
+            <input type="file" name="file" class="form-control" required>
+            <button type="submit" class="btn btn-outline-secondary">Upload</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if session.user_id %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white fw-medium">
+        <i class="bi bi-link-45deg"></i> Preview URL
+      </div>
+      <div class="card-body p-3">
+        <p class="text-muted small">Fetch a preview of any linked resource.</p>
+        <div class="input-group input-group-sm">
+          <input type="url" id="previewUrl" class="form-control" placeholder="https://...">
+          <button class="btn btn-outline-secondary" onclick="fetchPreview()">Fetch</button>
+        </div>
+        <pre id="previewResult" class="mt-2 p-2 bg-light rounded small" style="max-height:150px;overflow:auto;display:none;"></pre>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if session.role == 'admin' or session.user_id == doc.owner_id %}
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-medium">
+        <i class="bi bi-arrow-repeat"></i> Update Status
+      </div>
+      <div class="card-body p-3">
+        <div class="d-grid gap-2">
+          <button class="btn btn-sm btn-outline-warning" onclick="setStatus('in_review')">Mark In Review</button>
+          <button class="btn btn-sm btn-outline-success" onclick="setStatus('approved')">Approve</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="setStatus('rejected')">Reject</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DOC_ID = {{ doc.id }};
+
+function fetchPreview() {
+  const url = document.getElementById('previewUrl').value;
+  const result = document.getElementById('previewResult');
+  if (!url) return;
+  result.style.display = 'block';
+  result.textContent = 'Loading…';
+  fetch(`/api/preview?url=${encodeURIComponent(url)}`)
+    .then(r => r.json())
+    .then(data => { result.textContent = data.preview || data.error || 'No content'; })
+    .catch(e => { result.textContent = 'Error: ' + e.message; });
+}
+
+function setStatus(status) {
+  fetch(`/api/document/${DOC_ID}/status`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  }).then(() => location.reload());
+}
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}PaperTrail — Document Review{% endblock %}
+{% block content %}
+<div class="row align-items-center mb-5">
+  <div class="col-md-7">
+    <h1 class="display-5 fw-bold">Collaborative Document Review</h1>
+    <p class="lead text-muted">
+      PaperTrail helps teams track, review, and approve documents in one place.
+      Upload contracts, proposals, and policies — then collect feedback and get sign-off.
+    </p>
+    {% if not session.user_id %}
+    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-2">Get started</a>
+    <a href="{{ url_for('login') }}" class="btn btn-outline-secondary btn-lg">Log in</a>
+    {% else %}
+    <a href="{{ url_for('new_document') }}" class="btn btn-primary btn-lg">
+      <i class="bi bi-plus-circle"></i> New Document
+    </a>
+    {% endif %}
+  </div>
+  <div class="col-md-5 text-center d-none d-md-block">
+    <i class="bi bi-file-earmark-text" style="font-size: 8rem; color: #0d6efd; opacity: 0.15;"></i>
+  </div>
+</div>
+
+<h2 class="h5 text-muted fw-normal mb-3">Recently published</h2>
+{% if documents %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+  {% for doc in documents %}
+  <div class="col">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="card-title mb-0">
+            <a href="{{ url_for('view_document', doc_id=doc.id) }}" class="text-decoration-none">{{ doc.title }}</a>
+          </h5>
+          <span class="badge bg-{{ 'success' if doc.status == 'approved' else 'warning text-dark' if doc.status == 'in_review' else 'secondary' }} ms-2">
+            {{ doc.status.replace('_', ' ') }}
+          </span>
+        </div>
+        <p class="card-text text-muted small">{{ (doc.content or '')[:120] }}{% if doc.content and doc.content|length > 120 %}…{% endif %}</p>
+      </div>
+      <div class="card-footer text-muted small d-flex justify-content-between">
+        <span><i class="bi bi-person"></i> {{ doc.author_name }}</span>
+        <span><i class="bi bi-clock"></i> {{ doc.updated_at[:10] }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+  <p class="mt-2">No public documents yet.</p>
+</div>
+{% endif %}
+{% endblock %}

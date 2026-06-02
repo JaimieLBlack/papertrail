@@ -1,0 +1,51 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.navbar-brand {
+  font-size: 1.25rem;
+  letter-spacing: -0.3px;
+}
+
+.card {
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+.document-content {
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.document-content h1, .document-content h2, .document-content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.document-content p {
+  margin-bottom: 1rem;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.font-monospace {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.table th {
+  font-weight: 500;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #6c757d;
+}

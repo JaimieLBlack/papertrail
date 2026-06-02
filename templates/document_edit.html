@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if doc else 'New Document' }} — PaperTrail{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-4">{{ 'Edit Document' if doc else 'New Document' }}</h1>
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-medium">Title</label>
+        <input type="text" name="title" class="form-control form-control-lg"
+               value="{{ doc.title if doc else '' }}" required placeholder="Document title">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-medium">Content</label>
+        <p class="text-muted small mb-1">HTML is supported for rich formatting.</p>
+        <textarea name="content" class="form-control font-monospace" rows="16"
+                  placeholder="Write your document content here…">{{ doc.content if doc else '' }}</textarea>
+      </div>
+      <div class="row mb-4">
+        <div class="col-sm-6">
+          <label class="form-label fw-medium">Visibility</label>
+          <select name="visibility" class="form-select">
+            <option value="private" {{ 'selected' if doc and doc.visibility == 'private' else '' }}>Private</option>
+            <option value="public" {{ 'selected' if doc and doc.visibility == 'public' else '' }}>Public</option>
+          </select>
+        </div>
+        {% if doc %}
+        <div class="col-sm-6">
+          <label class="form-label fw-medium">Status</label>
+          <select name="status" class="form-select">
+            <option value="draft" {{ 'selected' if doc.status == 'draft' else '' }}>Draft</option>
+            <option value="in_review" {{ 'selected' if doc.status == 'in_review' else '' }}>In Review</option>
+            <option value="approved" {{ 'selected' if doc.status == 'approved' else '' }}>Approved</option>
+            <option value="rejected" {{ 'selected' if doc.status == 'rejected' else '' }}>Rejected</option>
+          </select>
+        </div>
+        {% endif %}
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">{{ 'Save changes' if doc else 'Create document' }}</button>
+        <a href="{{ url_for('view_document', doc_id=doc.id) if doc else url_for('dashboard') }}"
+           class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

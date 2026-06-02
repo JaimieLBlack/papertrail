@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PaperTrail{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">My Documents</h1>
+  <a href="{{ url_for('new_document') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> New Document
+  </a>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="dashTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#mine">Mine ({{ my_docs|length }})</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#shared">Shared with me ({{ shared|length }})</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <div class="tab-pane fade show active" id="mine">
+    {% if my_docs %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Visibility</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in my_docs %}
+          <tr>
+            <td><a href="{{ url_for('view_document', doc_id=doc.id) }}" class="text-decoration-none fw-medium">{{ doc.title }}</a></td>
+            <td>
+              <span class="badge bg-{{ 'success' if doc.status == 'approved' else 'danger' if doc.status == 'rejected' else 'warning text-dark' if doc.status == 'in_review' else 'secondary' }}">
+                {{ doc.status.replace('_', ' ') }}
+              </span>
+            </td>
+            <td>
+              <i class="bi bi-{{ 'globe' if doc.visibility == 'public' else 'lock' }}"></i>
+              {{ doc.visibility }}
+            </td>
+            <td class="text-muted small">{{ doc.updated_at[:10] }}</td>
+            <td>
+              <a href="{{ url_for('edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-file-earmark-plus" style="font-size: 3rem;"></i>
+      <p class="mt-2">No documents yet. <a href="{{ url_for('new_document') }}">Create your first one.</a></p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="tab-pane fade" id="shared">
+    {% if shared %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>Title</th>
+            <th>Owner</th>
+            <th>Status</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in shared %}
+          <tr>
+            <td><a href="{{ url_for('view_document', doc_id=doc.id) }}" class="text-decoration-none fw-medium">{{ doc.title }}</a></td>
+            <td class="text-muted small">{{ doc.owner_name }}</td>
+            <td>
+              <span class="badge bg-{{ 'success' if doc.status == 'approved' else 'secondary' }}">
+                {{ doc.status.replace('_', ' ') }}
+              </span>
+            </td>
+            <td class="text-muted small">{{ doc.updated_at[:10] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted">No documents have been shared with you.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
