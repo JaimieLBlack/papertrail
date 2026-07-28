@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Import Documents — PaperTrail{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Import Documents</h1>
+        <p class="text-muted small">
+          Upload a PaperTrail XML export to bulk-import documents into your workspace.
+        </p>
+
+        {% if result %}
+        <div class="alert alert-success">{{ result }}</div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label">XML file</label>
+            <input type="file" name="file" class="form-control" accept=".xml">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">…or paste XML</label>
+            <textarea name="xml" class="form-control font-monospace" rows="8"
+              placeholder="&lt;documents&gt;&#10;  &lt;document&gt;&#10;    &lt;title&gt;My Doc&lt;/title&gt;&#10;    &lt;content&gt;...&lt;/content&gt;&#10;  &lt;/document&gt;&#10;&lt;/documents&gt;"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Import</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
