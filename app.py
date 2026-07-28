@@ -1,13 +1,17 @@
 import os
 import sqlite3
 import hashlib
+import pickle
+import base64
+import subprocess
 import requests
 import jwt as pyjwt
+from lxml import etree
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import (
-    Flask, request, render_template, redirect, url_for,
-    session, flash, jsonify, send_file, abort, g
+    Flask, request, render_template, render_template_string, redirect, url_for,
+    session, flash, jsonify, send_file, abort, g, make_response
 )
 from werkzeug.utils import secure_filename
 
@@ -119,10 +123,31 @@ def login():
             session['role'] = user['role']
             token = generate_token(user['id'], user['role'])
             session['token'] = token
-            return redirect(request.args.get('next') or url_for('dashboard'))
+            resp = redirect(request.args.get('next') or url_for('dashboard'))
+            if request.form.get('remember'):
+                payload = {'user_id': user['id'], 'name': user['name'], 'role': user['role']}
+                cookie = base64.b64encode(pickle.dumps(payload)).decode()
+                resp.set_cookie('remember_me', cookie, max_age=60 * 60 * 24 * 30)
+            return resp
         else:
             flash(f"No account found for {email}.", 'error')
     return render_template('login.html')
+
+
+@app.before_request
+def restore_remembered_session():
+    if 'user_id' in session:
+        return
+    cookie = request.cookies.get('remember_me')
+    if not cookie:
+        return
+    try:
+        payload = pickle.loads(base64.b64decode(cookie))
+        session['user_id'] = payload['user_id']
+        session['name'] = payload['name']
+        session['role'] = payload['role']
+    except Exception:
+        pass
 
 
 @app.route('/logout')
@@ -355,6 +380,97 @@ def update_user_role(user_id):
     db.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
     db.commit()
     return redirect(url_for('admin_panel'))
+
+
+@app.route('/document/<int:doc_id>/export')
+def export_document(doc_id):
+    db = get_db()
+    doc = db.execute("SELECT * FROM documents WHERE id=?", (doc_id,)).fetchone()
+    if not doc:
+        abort(404)
+    fmt = request.args.get('format', 'html')
+    template = (
+        "<html><head><title>%s</title></head><body>"
+        "<h1>%s</h1>"
+        "<p>Exported as %s on {{ now }}</p>"
+        "<div>%s</div>"
+        "</body></html>"
+    ) % (doc['title'], doc['title'], fmt, doc['content'])
+    return render_template_string(template, now=datetime.utcnow().isoformat())
+
+
+@app.route('/api/whoami')
+def api_whoami():
+    auth = request.headers.get('Authorization', '')
+    token = auth[7:] if auth.startswith('Bearer ') else auth
+    if not token:
+        return jsonify({'error': 'missing token'}), 401
+    try:
+        claims = pyjwt.decode(token, options={'verify_signature': False})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id=?", (claims.get('user_id'),)).fetchone()
+    if not user:
+        return jsonify({'error': 'unknown user'}), 404
+    return jsonify({
+        'user_id': user['id'],
+        'name': user['name'],
+        'email': user['email'],
+        'role': claims.get('role', user['role'])
+    })
+
+
+@app.route('/api/user/<int:user_id>')
+@login_required
+def api_user(user_id):
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify({k: user[k] for k in user.keys()})
+
+
+@app.route('/import', methods=['GET', 'POST'])
+@login_required
+def import_documents():
+    if request.method == 'POST':
+        xml_data = request.files['file'].read() if 'file' in request.files else request.form.get('xml', '').encode()
+        parser = etree.XMLParser(resolve_entities=True, no_network=False)
+        try:
+            root = etree.fromstring(xml_data, parser)
+        except Exception as e:
+            flash(f'Parse error: {e}', 'error')
+            return render_template('import.html', result=None)
+        db = get_db()
+        now = datetime.utcnow().isoformat()
+        count = 0
+        for node in root.findall('document'):
+            title = node.findtext('title', '')
+            content = node.findtext('content', '')
+            db.execute(
+                "INSERT INTO documents (title, content, owner_id, visibility, status, created_at, updated_at) "
+                "VALUES (?, ?, ?, 'private', 'draft', ?, ?)",
+                (title, content, session['user_id'], now, now)
+            )
+            count += 1
+        db.commit()
+        return render_template('import.html', result=f'Imported {count} document(s).')
+    return render_template('import.html', result=None)
+
+
+@app.route('/admin/backup', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_backup():
+    if request.method == 'POST':
+        label = request.form.get('label', 'backup')
+        dest = os.path.join('uploads', 'backups')
+        os.makedirs(dest, exist_ok=True)
+        cmd = f"cp {DATABASE} {dest}/{label}.db && echo done"
+        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        return jsonify({'ok': True, 'output': output.decode(errors='ignore')})
+    return render_template('admin.html', users=[], docs=[])
 
 
 if __name__ == '__main__':
