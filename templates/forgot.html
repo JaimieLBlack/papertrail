@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Forgot Password — PaperTrail{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Reset your password</h1>
+        <p class="text-muted small">Enter your email and we'll send a reset code.</p>
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">Email address</label>
+            <input type="email" name="email" class="form-control" required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Send reset code</button>
+        </form>
+        <hr>
+        <p class="text-center mb-0 small">
+          Have a code already? <a href="{{ url_for('reset_password') }}">Reset password</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
