@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Help — PaperTrail{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-lg-3">
+    <div class="list-group mb-4">
+      <a class="list-group-item list-group-item-action" href="{{ url_for('help_page', page='faq') }}">FAQ</a>
+      <a class="list-group-item list-group-item-action" href="{{ url_for('help_page', page='getting-started') }}">Getting Started</a>
+      <a class="list-group-item list-group-item-action" href="{{ url_for('help_page', page='sharing') }}">Sharing Documents</a>
+    </div>
+  </div>
+  <div class="col-lg-9">
+    <div class="card shadow-sm">
+      <div class="card-body p-4 help-content">
+        {{ body | safe }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

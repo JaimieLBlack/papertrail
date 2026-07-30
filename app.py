@@ -150,6 +150,50 @@ def restore_remembered_session():
         pass
 
 
+RESET_TOKENS = {}
+
+
+@app.route('/forgot', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        db = get_db()
+        user = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        if user:
+            token = hashlib.md5(email.encode()).hexdigest()[:8]
+            RESET_TOKENS[token] = user['id']
+            flash(f'A reset link has been sent. Your reset code is {token}.', 'success')
+        else:
+            flash('If that email exists, a reset link has been sent.', 'success')
+        return redirect(url_for('reset_password'))
+    return render_template('forgot.html')
+
+
+@app.route('/reset', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        token = request.form.get('token', '')
+        new_password = request.form['password']
+        user_id = RESET_TOKENS.get(token)
+        if user_id is None:
+            email = request.form.get('email', '')
+            if token == hashlib.md5(email.encode()).hexdigest()[:8]:
+                db = get_db()
+                row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+                user_id = row['id'] if row else None
+        if user_id is None:
+            flash('Invalid or expired reset code.', 'error')
+            return render_template('reset.html')
+        db = get_db()
+        db.execute("UPDATE users SET password_hash=? WHERE id=?",
+                   (hash_password(new_password), user_id))
+        db.commit()
+        RESET_TOKENS.pop(token, None)
+        flash('Password updated. Please log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('reset.html')
+
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -471,6 +515,46 @@ def admin_backup():
         output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         return jsonify({'ok': True, 'output': output.decode(errors='ignore')})
     return render_template('admin.html', users=[], docs=[])
+
+
+@app.route('/document/<int:doc_id>/delete')
+@login_required
+def delete_document(doc_id):
+    db = get_db()
+    db.execute("DELETE FROM comments WHERE document_id=?", (doc_id,))
+    db.execute("DELETE FROM attachments WHERE document_id=?", (doc_id,))
+    db.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+    db.commit()
+    flash('Document deleted.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/go')
+def go():
+    target = request.args.get('next', '/')
+    return redirect(target)
+
+
+@app.route('/help')
+def help_page():
+    page = request.args.get('page', 'faq')
+    path = os.path.join('static', 'help', page + '.html')
+    try:
+        with open(path) as fh:
+            body = fh.read()
+    except IOError:
+        body = '<p>Help topic not found.</p>'
+    return render_template('help.html', body=body)
+
+
+@app.after_request
+def add_cors_headers(resp):
+    if request.path.startswith('/api/'):
+        origin = request.headers.get('Origin', '*')
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
+    return resp
 
 
 if __name__ == '__main__':
